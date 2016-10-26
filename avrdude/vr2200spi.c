@@ -66,11 +66,11 @@ struct pdata
 };
 
 typedef enum {
-    LINUXSPI_GPIO_DIRECTION,
-    LINUXSPI_GPIO_VALUE,
-    LINUXSPI_GPIO_EXPORT,
-    LINUXSPI_GPIO_UNEXPORT
-} LINUXSPI_GPIO_OP;
+    VR2200SPI_GPIO_DIRECTION,
+    VR2200SPI_GPIO_VALUE,
+    VR2200SPI_GPIO_EXPORT,
+    VR2200SPI_GPIO_UNEXPORT
+} VR2200SPI_GPIO_OP;
 
 #define PDATA(pgm) ((struct pdata *)(pgm->cookie))
 #define IMPORT_PDATA(pgm) struct pdata *pdata = PDATA(pgm)
@@ -81,7 +81,6 @@ typedef enum {
 
 //vr2200spi specific functions
 static int vr2200spi_spi_duplex(PROGRAMMER* pgm, unsigned char* tx, unsigned char* rx, int len);
-static int vr2200spi_gpio_op_wr(PROGRAMMER* pgm, LINUXSPI_GPIO_OP op, int gpio, char* val);
 //interface - management
 static void vr2200spi_setup(PROGRAMMER* pgm);
 static void vr2200spi_teardown(PROGRAMMER* pgm);
@@ -134,58 +133,6 @@ static int vr2200spi_spi_duplex(PROGRAMMER* pgm, unsigned char* tx, unsigned cha
     return ret;
 }
 
-/**
- * @brief Performs an operation on a gpio. Writes to stderr if error.
- * @param op Operation to perform
- * @param gpio 
- * @return -1 if failed, 0 otherwise
- */
-static int vr2200spi_gpio_op_wr(PROGRAMMER* pgm, LINUXSPI_GPIO_OP op, int gpio, char* val)
-{
-    char* fn = malloc(PATH_MAX); //filename
-    gpio &= ~PIN_INVERSE; // Remove the inversion flag
-
-    switch(op)
-    {
-        case LINUXSPI_GPIO_DIRECTION:
-            sprintf(fn, "/sys/class/gpio/gpio%d/direction", gpio);
-            break;
-        case LINUXSPI_GPIO_EXPORT:
-            sprintf(fn, "/sys/class/gpio/export");
-            break;
-        case LINUXSPI_GPIO_UNEXPORT:
-            sprintf(fn, "/sys/class/gpio/unexport");
-            break;
-        case LINUXSPI_GPIO_VALUE:
-            sprintf(fn, "/sys/class/gpio/gpio%d/value", gpio);
-            break;
-        default:
-            fprintf(stderr, "%s: vr2200spi_gpio_op_wr(): Unknown op %d", progname, op);
-            return -1;
-    }
-    
-    FILE* f = fopen(fn, "w");
-    
-    if (!f)
-    {
-        fprintf(stderr, "%s: vr2200spi_gpio_op_wr(): Unable to open file %s", progname, fn);
-        free(fn); //we no longer need the path
-        return -1;
-    }
-    
-    if (fprintf(f, val) < 0)
-    {
-        fprintf(stderr, "%s: vr2200spi_gpio_op_wr(): Unable to write file %s with %s", progname, fn, val);
-        free(fn); //we no longer need the path
-        return -1;
-    }
-    
-    fclose(f);
-    free(fn); //we no longer need the path
-    
-    return 0;
-}
-
 static void vr2200spi_setup(PROGRAMMER* pgm)
 {
     if ((pgm->cookie = malloc(sizeof(struct pdata))) == 0)
@@ -211,46 +158,18 @@ static int vr2200spi_open(PROGRAMMER* pgm, char* port)
         exit(1);
     }
     
-    if (pgm->pinno[PIN_AVR_RESET] == 0)
-    {
-        fprintf(stderr, "%s: error: No pin assigned to AVR RESET.\n", progname);
-        exit(1);
-    }
+    // TODO: enable the buffer with a userspace i2c command
+    // TODO: set AVR RESET# low, likewise
+    fprintf(stderr, "you should already have put the AVR into reset and enabled the buffer");
 
-    //export reset pin
-    buf = malloc(32);
-    sprintf(buf, "%d", pgm->pinno[PIN_AVR_RESET] &~PIN_INVERSE);
-    if (vr2200spi_gpio_op_wr(pgm, LINUXSPI_GPIO_EXPORT, pgm->pinno[PIN_AVR_RESET], buf) < 0)
-    {
-        free(buf);
-        return -1;
-    }
-    free(buf);
-    
-    //set reset to output active and write initial value at same time
-    //this prevents glitches https://www.kernel.org/doc/Documentation/gpio/sysfs.txt
-    if (vr2200spi_gpio_op_wr(pgm, LINUXSPI_GPIO_DIRECTION, pgm->pinno[PIN_AVR_RESET], pgm->pinno[PIN_AVR_RESET]&PIN_INVERSE ? "high" : "low") < 0)
-    {
-        return -1;
-    }
-    
-    //save the port to our data
-    strcpy(pgm->port, port);
-    
     return 0;
 }
 
 static void vr2200spi_close(PROGRAMMER* pgm)
 {
-    char* buf;
-    
-    //set reset to input
-    vr2200spi_gpio_op_wr(pgm, LINUXSPI_GPIO_DIRECTION, pgm->pinno[PIN_AVR_RESET], "in");
-    
-    //unexport reset
-    buf = malloc(32);
-    sprintf(buf, "%d", pgm->pinno[PIN_AVR_RESET]);
-    vr2200spi_gpio_op_wr(pgm, LINUXSPI_GPIO_UNEXPORT, pgm->pinno[PIN_AVR_RESET], buf);
+    // TODO: disable the buffer with a userspace i2c command
+    // TODO: set AVR RESET# high, likewise
+    fprintf(stderr, "you should now disable the buffer and take the AVR out of reset");
 }
 
 static void vr2200spi_disable(PROGRAMMER* pgm)
