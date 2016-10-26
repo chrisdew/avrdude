@@ -131,6 +131,8 @@ libavrdude_a_SOURCES = \
 	linuxgpio.h \
 	linuxspi.c \
 	linuxspi.h \
+	vr2200spi.c \
+	vr2200spi.h \
 	linux_ppdev.h \
 	lists.c \
 	lists.h \

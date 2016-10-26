@@ -552,6 +552,11 @@ fi
 if test x$have_spidev = xyes; then
    echo "ENABLED    linuxspi"
 else
-   echo "DISABLED   linnuxspi"
+   echo "DISABLED   linuxspi"
 fi
 
+if test x$have_spidev = xyes; then
+   echo "ENABLED    vr2200spi"
+else
+   echo "DISABLED   vr2200spi"
+fi
